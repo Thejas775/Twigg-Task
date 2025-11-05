@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: investment_holdings_db
+    environment:
+      POSTGRES_DB: investment_holdings
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Database Setup (runs once)
+  db-setup:
+    build: .
+    container_name: investment_holdings_db_setup
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres123
+      DB_NAME: investment_holdings
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+    command: ["python", "scripts/setup_db.py"]
+    restart: "no"
+
+  # Data Seeding (runs once)
+  db-seed:
+    build: .
+    container_name: investment_holdings_db_seed
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres123
+      DB_NAME: investment_holdings
+    depends_on:
+      db-setup:
+        condition: service_completed_successfully
+    networks:
+      - app-network
+    command: ["python", "scripts/seed_data.py"]
+    restart: "no"
+
+  # FastAPI Backend
+  backend:
+    build: .
+    container_name: investment_holdings_backend
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres123
+      DB_NAME: investment_holdings
+      JWT_SECRET_KEY: your-super-secret-jwt-key-for-docker
+      JWT_ALGORITHM: HS256
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      DEBUG: true
+    ports:
+      - "8000:8000"
+    depends_on:
+      db-seed:
+        condition: service_completed_successfully
+    networks:
+      - app-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge

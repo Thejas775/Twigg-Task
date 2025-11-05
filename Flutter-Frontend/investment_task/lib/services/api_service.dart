@@ -5,7 +5,7 @@ import '../models/user.dart';
 import '../models/holdings_response.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://10.155.153.89:8000';
+  static const String baseUrl = 'http://ip_address:8000';
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
   String? _token;
 
